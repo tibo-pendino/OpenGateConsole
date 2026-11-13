@@ -6,6 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "cn";
 import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
+import { InlineScript } from "@/components/inline-script";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
@@ -43,6 +44,20 @@ type SidebarContextProps = {
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
 
+const SIDEBAR_COOKIE_PATTERN = `(?:^|; )${SIDEBAR_COOKIE_NAME}=(true|false)(?:;|$)`;
+
+function readSidebarCookie(): boolean | undefined {
+  if (typeof document === "undefined") return undefined;
+  const match = document.cookie.match(new RegExp(SIDEBAR_COOKIE_PATTERN));
+  return match ? match[1] === "true" : undefined;
+}
+
+// Applique l'état du cookie à l'élément précédent (le <div data-slot="sidebar">)
+// pendant le parsing du HTML, pour éviter un flash ouvert → fermé au rechargement.
+function sidebarStateScript(collapsible: string) {
+  return `{try{var s=document.currentScript,e=s&&s.previousElementSibling,m=document.cookie.match(new RegExp(${JSON.stringify(SIDEBAR_COOKIE_PATTERN)}));if(e&&m){var o=m[1]==="true";e.setAttribute("data-state",o?"expanded":"collapsed");e.setAttribute("data-collapsible",o?"":${JSON.stringify(collapsible)})}}catch(x){}}`;
+}
+
 function useSidebar() {
   const context = React.useContext(SidebarContext);
   if (!context) {
@@ -70,7 +85,11 @@ function SidebarProvider({
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
-  const [_open, _setOpen] = React.useState(defaultOpen);
+  // Initialisé depuis le cookie côté client, comme le script inline de
+  // <Sidebar> : l'état React correspond ainsi au DOM corrigé avant hydratation.
+  const [_open, _setOpen] = React.useState(
+    () => readSidebarCookie() ?? defaultOpen,
+  );
   const open = openProp ?? _open;
   const setOpen = React.useCallback(
     (value: boolean | ((value: boolean) => boolean)) => {
@@ -206,48 +225,51 @@ function Sidebar({
   }
 
   return (
-    <div
-      className="group peer hidden text-sidebar-foreground md:block"
-      data-state={state}
-      data-collapsible={state === "collapsed" ? collapsible : ""}
-      data-variant={variant}
-      data-side={side}
-      data-slot="sidebar"
-    >
-      {/* This is what handles the sidebar gap on desktop */}
+    <>
       <div
-        data-slot="sidebar-gap"
-        className={cn(
-          "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
-          "group-data-[collapsible=offcanvas]:w-0",
-          "group-data-[side=right]:rotate-180",
-          variant === "floating" || variant === "inset"
-            ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)",
-        )}
-      />
-      <div
-        data-slot="sidebar-container"
+        className="group peer hidden text-sidebar-foreground md:block"
+        data-state={state}
+        data-collapsible={state === "collapsed" ? collapsible : ""}
+        data-variant={variant}
         data-side={side}
-        className={cn(
-          "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
-          // Adjust the padding for floating and inset variants.
-          variant === "floating" || variant === "inset"
-            ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
-            : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
-          className,
-        )}
-        {...props}
+        data-slot="sidebar"
       >
+        {/* This is what handles the sidebar gap on desktop */}
         <div
-          data-sidebar="sidebar"
-          data-slot="sidebar-inner"
-          className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+          data-slot="sidebar-gap"
+          className={cn(
+            "relative w-(--sidebar-width) bg-transparent transition-[width] duration-200 ease-linear",
+            "group-data-[collapsible=offcanvas]:w-0",
+            "group-data-[side=right]:rotate-180",
+            variant === "floating" || variant === "inset"
+              ? "group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4)))]"
+              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon)",
+          )}
+        />
+        <div
+          data-slot="sidebar-container"
+          data-side={side}
+          className={cn(
+            "fixed inset-y-0 z-10 hidden h-svh w-(--sidebar-width) transition-[left,right,width] duration-200 ease-linear data-[side=left]:left-0 data-[side=left]:group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)] data-[side=right]:right-0 data-[side=right]:group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)] md:flex",
+            // Adjust the padding for floating and inset variants.
+            variant === "floating" || variant === "inset"
+              ? "p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)+(--spacing(4))+2px)]"
+              : "group-data-[collapsible=icon]:w-(--sidebar-width-icon) group-data-[side=left]:border-r group-data-[side=right]:border-l",
+            className,
+          )}
+          {...props}
         >
-          {children}
+          <div
+            data-sidebar="sidebar"
+            data-slot="sidebar-inner"
+            className="flex size-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:shadow-sm group-data-[variant=floating]:ring-1 group-data-[variant=floating]:ring-sidebar-border"
+          >
+            {children}
+          </div>
         </div>
       </div>
-    </div>
+      <InlineScript html={sidebarStateScript(collapsible)} />
+    </>
   );
 }
 

@@ -1,6 +1,11 @@
 "use client";
 
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
+import { useState } from "react";
+import {
+  SettingsDialog,
+  type SettingsSection,
+} from "@/components/settings-dialog";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -19,6 +24,8 @@ import type { CurrentUser } from "@/lib/session";
 
 export function NavUser({ user }: { user: CurrentUser }) {
   const { isMobile } = useSidebar();
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSection | null>(null);
 
   return (
     <SidebarMenu>
@@ -48,11 +55,11 @@ export function NavUser({ user }: { user: CurrentUser }) {
             side={isMobile ? "bottom" : "right"}
             align="end"
           >
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSettingsSection("profile")}>
               <User />
               Mon compte
             </DropdownMenuItem>
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setSettingsSection("preferences")}>
               <Settings />
               Paramètres
             </DropdownMenuItem>
@@ -63,6 +70,10 @@ export function NavUser({ user }: { user: CurrentUser }) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <SettingsDialog
+          section={settingsSection}
+          onSectionChange={setSettingsSection}
+        />
       </SidebarMenuItem>
     </SidebarMenu>
   );
