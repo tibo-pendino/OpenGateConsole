@@ -40,3 +40,14 @@ export function getCurrentOrganization(): Organization {
     ],
   };
 }
+
+/** Paramètres { org, project } de tous les projets, pour generateStaticParams. */
+export function getProjectParams() {
+  const organization = getCurrentOrganization();
+  return organization.teams.flatMap((team) =>
+    team.projects.map((project) => ({
+      org: organization.slug,
+      project: project.slug,
+    })),
+  );
+}
