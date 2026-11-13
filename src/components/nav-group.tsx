@@ -1,6 +1,6 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
+import { ArrowUpRight, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense } from "react";
@@ -26,6 +26,7 @@ type NavGroupProps = {
  * Groupe de liens de la sidebar.
  * `baseUrl` est préfixé à chaque `item.url` (ex. /[org]/[project]).
  * Un `item.url` vide pointe sur `baseUrl` lui-même et n'est actif que sur cette page exacte.
+ * Un `item.url` absolu (http…) est un lien externe, ouvert dans un nouvel onglet.
  *
  * Avec Cache Components, `usePathname` suspend sur les routes à paramètres
  * dynamiques : on affiche donc les liens sans état actif en attendant.
@@ -55,8 +56,10 @@ function NavGroupView({
       <SidebarGroupContent>
         <SidebarMenu>
           {section.items.map((item) => {
-            const href = `${baseUrl}${item.url}`;
+            const isExternal = /^https?:\/\//.test(item.url);
+            const href = isExternal ? item.url : `${baseUrl}${item.url}`;
             const isActive =
+              !isExternal &&
               pathname !== null &&
               (item.url === ""
                 ? pathname === href
@@ -65,12 +68,26 @@ function NavGroupView({
             return (
               <SidebarMenuItem key={item.title}>
                 <SidebarMenuButton
-                  render={<Link href={href} />}
+                  render={
+                    isExternal ? (
+                      // biome-ignore lint/a11y/useAnchorContent: contenu fourni par SidebarMenuButton
+                      <a
+                        href={href}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      />
+                    ) : (
+                      <Link href={href} />
+                    )
+                  }
                   isActive={isActive}
                   tooltip={item.title}
                 >
                   <item.icon />
                   <span>{item.title}</span>
+                  {isExternal && (
+                    <ArrowUpRight className="ml-auto text-sidebar-foreground/50" />
+                  )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
             );
